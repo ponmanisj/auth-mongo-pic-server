@@ -4,14 +4,11 @@ import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import upload from "../middleware/upload.js";
 
-
-
+// GET all users, optionally with ?limit=
 router.get("/api/users/", async (req, res) => {
   try {
     const { limit } = req.query;
-    const hasInvalidQuery = Object.keys(req.query).some(
-      (key) => key !== "limit"
-    );
+    const hasInvalidQuery = Object.keys(req.query).some((key) => key !== "limit");
 
     if (hasInvalidQuery) {
       return res
@@ -46,6 +43,7 @@ router.get("/api/users/", async (req, res) => {
   }
 });
 
+// GET user by ID
 router.get("/api/users/:id", async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -53,133 +51,50 @@ router.get("/api/users/:id", async (req, res) => {
     if (user) {
       res.status(200).json(user);
     } else {
-      res
-        .status(404)
-        .json({ message: `User with ID ${req.params.id} not found` });
+      res.status(404).json({ message: `User with ID ${req.params.id} not found` });
     }
   } catch (error) {
-    res.status(500).json({ message: `Error feching users, ${error}` });
+    res.status(500).json({ message: `Error fetching users, ${error}` });
   }
 });
 
+// DELETE user by ID
 router.delete("/api/users/:id", async (req, res) => {
   const deletedUser = await User.findByIdAndDelete(req.params.id);
 
   if (deletedUser) {
     res.status(200).json({ message: `User with id ${req.params.id} deleted` });
   } else {
-    res
-      .status(404)
-      .json({ message: `User with ID ${req.params.id} not found` });
+    res.status(404).json({ message: `User with ID ${req.params.id} not found` });
   }
 });
 
-// router.put("/api/users/:id", async (req, res) => {
-//   try {
-//     const updatedUser = await User.findByIdAndUpdate(req.params.id, req.body, {
-//       new: true,
-//     });
-//     if (updatedUser) {
-//       res.status(200).json(updatedUser);
-//     } else {
-//       res.status(404).json({
-//         message: `User with ID ${req.params.id} not found`,
-//       });
-//     }
-//   } catch (error) {
-//     res.status(500).json({ message: `Error feching users, ${error}` });
-//   }
-// });
-
+// PUT update user by ID
 router.put("/api/users/:id", async (req, res) => {
   try {
     const updateData = { ...req.body };
-    if (updateData) {
+
+    // If password is provided, hash it
+    if (updateData.password) {
       const salt = await bcrypt.genSalt(10);
       updateData.password = await bcrypt.hash(updateData.password, salt);
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true }
-    );
+    const updatedUser = await User.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+    });
 
     if (updatedUser) {
       res.status(200).json(updatedUser);
     } else {
-      res
-        .status(400)
-        .json({ message: `User with ID ${req.params.id} not found ` });
+      res.status(400).json({ message: `User with ID ${req.params.id} not found` });
     }
   } catch (error) {
-    res.status(500).json({ message: `Error editing  users, ${error} ` });
+    res.status(500).json({ message: `Error editing users, ${error}` });
   }
 });
 
-
-// router.post("/api/users/", async (req, res) => {
-//   const newUser = new User({
-//     username: req.body.username,
-//     password: req.body.password,
-//     age: req.body.age,
-//     jobrole: req.body.jobrole,
-//     location: req.body.location,
-//     education: req.body.education,
-//   });
-
-//   try {
-//     const savedUser = await newUser.save();
-//     res.status(200).json(savedUser);
-//   } catch (error) {
-//     res.status(400).json({ message: `Error creating new user: ${error}` });
-//   }
-// });
-
-router.post("/api/users/", async (req, res) => {
-
-  const {username, password, age, jobrole, location, education} = req.body
-
-  try{
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    const newUser = new User({
-      username,
-      password : hashedPassword,
-      age,
-      jobrole,
-      location,
-      education
-    })
-
-    const savedUser = await newUser.save();
-    res.status(200).json(savedUser);
-  }catch (error) {
-    res.status(400).json({ message: `Error creating new user: ${error}` });
-   }
-})
-
-
-router.post("/api/users/login/", async (req,res)=> {
-  try{
-    const {username, password} = req.body;
-    const user = await User.findOne({ username });
-
-    if(!user) {
-      return res.status(404).json({message: `User ${username} not found`});
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if(!isMatch){
-      return res.status(404).json({message: "invalid password"});
-    }
-     res.status(200).json({message: `login successfull`, user});
-  }catch (error){
-    res.status(500).json({message: `Login error ${error}`})
-  }
-})
-
+// POST create new user WITH optional profilePic upload
 router.post("/api/users/", upload.single("profilePic"), async (req, res) => {
   const { username, password, age, jobrole, location, education } = req.body;
 
@@ -206,33 +121,24 @@ router.post("/api/users/", upload.single("profilePic"), async (req, res) => {
   }
 });
 
-// CREATE user with profilePic
-router.post("/api/users/", async (req, res) => {
-  const { username, password, age, jobrole, location, education } = req.body;
-
+// POST login user
+router.post("/api/users/login/", async (req, res) => {
   try {
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const { username, password } = req.body;
+    const user = await User.findOne({ username });
 
-    // 🔽 Add random avatar using DiceBear API
-    const profilePic = `https://api.dicebear.com/7.x/thumbs/svg?seed=${username}`;
+    if (!user) {
+      return res.status(404).json({ message: `User ${username} not found` });
+    }
 
-    const newUser = new User({
-      username,
-      password: hashedPassword,
-      age,
-      jobrole,
-      location,
-      education,
-      profilePic, // 🔽 Add this line
-    });
-
-    const savedUser = await newUser.save();
-    res.status(200).json(savedUser);
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(404).json({ message: "Invalid password" });
+    }
+    res.status(200).json({ message: "Login successful", user });
   } catch (error) {
-    res.status(400).json({ message: `Error creating new user: ${error}` });
+    res.status(500).json({ message: `Login error ${error}` });
   }
 });
-
 
 export default router;
