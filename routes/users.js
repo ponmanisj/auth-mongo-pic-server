@@ -80,9 +80,8 @@ router.put("/api/users/:id", async (req, res) => {
       updateData.password = await bcrypt.hash(updateData.password, salt);
     }
 
-    const updatedUser = await User.findByIdAndUpdate(req.params.id, updateData, {
-      new: true,
-    });
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.id, updateData, {new: true});
 
     if (updatedUser) {
       res.status(200).json(updatedUser);
@@ -102,16 +101,16 @@ router.post("/api/users/", upload.single("profilePic"), async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    const profilePic = req.file ? `/uploads/${req.file.filename}` : "";
+    // const profilePic = req.file ? `/uploads/${req.file.filename}` : "";
 
     const newUser = new User({
       username,
       password: hashedPassword,
-      age,
+      age:Number(age),
       jobrole,
       location,
       education,
-      profilePic,
+      profilePic:req.file ? req.file.filename : "",
     });
 
     const savedUser = await newUser.save();
